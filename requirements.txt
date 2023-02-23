@@ -1,0 +1,3 @@
+# installed mosquitto as broker
+paho-mqtt # paho-mqtt as client
+protobuf # protobuf as message format

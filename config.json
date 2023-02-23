@@ -1,0 +1,19 @@
+{
+	"id": "sparkplugHost1",
+	"mqtt": {
+		"host": "localhost",
+		"port": 1883,
+		"username": "mqtt",
+		"password": "mqtt"
+	},
+	"reordering_timeout": 1000,
+	"groups": [
+		"bedroom"
+	],
+	"db": {
+		"type": "sqlite",
+		"url": "sparkplug.db",
+		"username": "sparkplug",
+		"password": "sparkplug"
+	}
+}
