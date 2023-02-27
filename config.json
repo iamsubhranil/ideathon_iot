@@ -7,8 +7,12 @@
 		"password": "mqtt"
 	},
 	"reordering_timeout": 1000,
-	"groups": [
-		"bedroom"
+	"zones": [
+		"bedroom",
+		"kitchen",
+		"living room",
+		"bathroom",
+		"dining room"
 	],
 	"db": {
 		"type": "sqlite",

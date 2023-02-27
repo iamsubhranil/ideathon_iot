@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 import time
 import random
+import json
 
 import sparkplug_b_pb2 as payload
 
@@ -42,21 +43,27 @@ def generate_metric(seq, metrics, mapping, birth=False, timestamp=None):
     payload1.seq = seq
 
     for name, value in metrics.items():
-        metric(payload1, None if name not in mapping else mapping[name], value, name, birth)
+        metric(
+            payload1, None if name not in mapping else mapping[name], value, name, birth)
 
     return payload1.SerializeToString()
+
 
 def randomizer(values):
     return random.choice(values)
 
+
 def integer_randomizer(min=0, max=100):
     return random.randint(min, max)
+
 
 def float_randomizer(min=0.0, max=100.0):
     return random.uniform(min, max)
 
+
 def boolean_randomizer():
     return random.choice([True, False])
+
 
 class Device:
 
@@ -65,8 +72,6 @@ class Device:
         self.name = name
         self.edgenode = edgenode
         self.mapping = {}
-
-        self.edgenode.register_device(self)
 
     def handle_message(self, client, userdata, msg):
         print("[" + self.name + "] RECV " +
@@ -164,6 +169,7 @@ class EdgeNode:
 
         self.devices = []
 
+        self.init_done = False
         self.connect()
 
     def handle_message(self, client, userdata, msg):
@@ -185,12 +191,14 @@ class EdgeNode:
     def on_connect(self, client, userdata, flags, rc):
         client.publish("spBv1.0/" + self.group + "/NBIRTH/" +
                        self.id, generate_metric(self.seq,
-                                self.metrics, self.mapping, True), 0, False)
+                                                self.metrics, self.mapping, True), 0, False)
         self.seq += 1
         self.metrics["bdSeq"] += 1
 
         for device in self.devices:
             self.register_device(device)
+
+        self.init_done = True
 
     def register_device(self, device):
         device_metrics = device.get_metrics()
@@ -224,16 +232,38 @@ class EdgeNode:
         for device in self.devices:
             self.publish(device, device.get_metrics())
 
+
 def main():
 
-    e = EdgeNode("bedroom", "node1", "localhost", 1883)
-    nodes = [Light, TemperatureSensor, HumiditySensor,
-             MotionSensor, DoorSensor, Fan, Switch, Speaker]
+    config = json.load(open("config.json"))
+
+    zones = config["zones"]
+
+    devices_types = [Light, TemperatureSensor, HumiditySensor,
+                     MotionSensor, DoorSensor, Fan, Switch, Speaker]
+
+    nodes = []
+    node_count = 20
+
+    for i in range(node_count):
+        e = EdgeNode(random.choice(zones), "node" + str(i),
+                     config["mqtt"]["host"], config["mqtt"]["port"])
+        nodes.append(e)
+
+        while not e.init_done:
+            time.sleep(0.1)
+
+        device_count = random.randint(1, 5)
+
+        for j in range(device_count):
+            device = random.choice(devices_types)
+            device = device("device" + str(j), e)
+            e.register_device(device)
+
     while True:
         time.sleep(2)
-        node = random.choice(nodes)
-        node = node("device" + str(random.randint(0, 10**10)), e)
-        e.publish_all()
+        for node in nodes:
+            node.publish_all()
 
 
 if __name__ == "__main__":
