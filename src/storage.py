@@ -42,7 +42,7 @@ def setup(config):
     c.execute("CREATE TABLE IF NOT EXISTS MetricBoolean (metric_id INTEGER REFERENCES Metric, metric_value INTEGER NOT NULL, timestamp INTEGER)")
 
 
-def execute_query(query, args):
+def execute_query(query, args=()):
     c = CONNECTION.cursor()
     # print("QUERY: " + query + " ARGS: " + str(args))
     ret = c.execute(query, args).fetchall()
