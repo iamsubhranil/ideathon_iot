@@ -111,3 +111,65 @@ def update_edge_node_status(group_name, edge_node_name, status, timestamp):
 @serialized
 def update_device_status(group_name, edge_node_name, device_name, status, timestamp):
     return execute_query("UPDATE Device SET status = ?, death_timestamp = ? WHERE device_name = ? AND edge_node_id = ?", (status, timestamp, device_name, get_edge_node_id(edge_node_name, group_name)))
+
+
+def get_groups():
+    return execute_query("SELECT * FROM Groups")
+
+
+def get_edge_node_count(group_id):
+    return execute_query("SELECT count(*) FROM EdgeNode WHERE group_id = ?", (group_id,))[0][0]
+
+
+def get_device_count_by_group(group_id):
+    return execute_query("SELECT count(*) FROM Device WHERE edge_node_id = (SELECT edge_node_id FROM EdgeNode WHERE group_id = ?)", (group_id,))[0][0]
+
+
+def get_device_count_by_edge_node(edge_node_id):
+    return execute_query("SELECT count(*) FROM Device WHERE edge_node_id = ?", (edge_node_id,))[0][0]
+
+
+def get_edge_nodes():
+    return execute_query("SELECT * FROM EdgeNode")
+
+
+def get_group_name(group_id):
+    return execute_query("SELECT group_name FROM Groups WHERE group_id = ?", (group_id,))[0][0]
+
+
+def get_group_name_by_edge_node(edge_node_id):
+    return execute_query("SELECT group_name FROM Groups WHERE group_id = (SELECT group_id FROM EdgeNode WHERE edge_node_id = ?)", (edge_node_id,))[0][0]
+
+
+def get_devices():
+    return execute_query("SELECT * FROM Device")
+
+
+def get_edge_node_name(edge_node_id):
+    return execute_query("SELECT edge_node_name FROM EdgeNode WHERE edge_node_id = ?", (edge_node_id,))[0][0]
+
+
+def get_device_by_name(group_name, edge_node_name, device_name):
+    query = "SELECT * from Device WHERE device_name like '%" + device_name + "%' "
+    if edge_node_name:
+        query += "AND edge_node_id in (SELECT edge_node_id FROM EdgeNode WHERE edge_node_name like '%" + \
+            edge_node_name + "%' "
+        if group_name:
+            query += "AND group_id in (SELECT group_id FROM Groups WHERE group_name like '%" + \
+                group_name + "%')"
+        query += ")"
+    return execute_query(query)
+
+
+def get_metrics_by_device(device_id):
+    metrics = execute_query(
+        "SELECT * FROM Metric WHERE device_id = ?", (device_id,))
+    ret = []
+    for metric in metrics:
+        metric_type = metric[3]
+        table_name = "Metric" + metric_type.capitalize()
+        metric_value = execute_query(
+            "SELECT metric_value, timestamp FROM {} WHERE metric_id = ? ORDER BY timestamp DESC".format(table_name), (metric[0],))[0]
+        ret.append((metric[2], metric[3], metric_value[0], metric_value[1]))
+
+    return ret
