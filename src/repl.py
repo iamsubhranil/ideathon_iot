@@ -13,13 +13,20 @@ import time
 def unix_time_diff_to_string(time1):
     unix_time_diff = int(time.time() - time1)
     if unix_time_diff < 60:
-        return str(unix_time_diff) + " seconds"
+        return str(unix_time_diff) + " second" + ("s" if unix_time_diff > 1 else "")
     elif unix_time_diff < 3600:
         return str(unix_time_diff // 60) + " minutes"
     elif unix_time_diff < 86400:
         return str(unix_time_diff // 3600) + " hours"
     else:
         return str(unix_time_diff // 86400) + " days"
+
+
+def create_table(cols, header_style=None, show_header=True):
+    table = Table(show_header=show_header, header_style=header_style)
+    for col in cols:
+        table.add_column(col, no_wrap=True)
+    return table
 
 
 class SparkplugREPL(cmd.Cmd):
@@ -33,13 +40,34 @@ class SparkplugREPL(cmd.Cmd):
     def do_exit(self, line):
         return False
 
+    def show_error(self, message, command):
+        self.console.print(message + "!", style="bold red")
+        self.console.print("Try [b]'help " + command +
+                           "'[/b] for more information.")
+
+    def print_help_text(self, text):
+        lines = text.splitlines()
+        summary = lines[1]
+        self.console.print(summary, style="italic green")
+        usage = lines[2].split(" ")
+        self.console.print(
+            "\n[u]Usage:[/u]\n\t[b]" + usage[0] + "[/b]", end=" ")
+        for part in usage[1:]:
+            self.console.print(part, style="italic white", end=" ")
+        self.console.print("\n[u]Details:[/u]")
+        for line in lines[3:]:
+            self.console.print(line)
+
+    def help_get(self):
+        self.print_help_text(self.do_get.__doc__)
+
+    def help_watch(self):
+        self.print_help_text(self.do_watch.__doc__)
+
     def list_groups(self):
         groups = storage.get_groups()
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("ID", width=12)
-        table.add_column("Name", width=12)
-        table.add_column("Edge nodes", width=12)
-        table.add_column("Devices", width=12)
+        table = create_table(
+            ["ID", "Name", "Edge nodes", "Devices"], "bold magenta")
         for group in groups:
             nodes = storage.get_edge_node_count(group[0])
             devices = storage.get_device_count_by_group(group[0])
@@ -48,12 +76,8 @@ class SparkplugREPL(cmd.Cmd):
 
     def list_nodes(self):
         nodes = storage.get_edge_nodes()
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("ID", width=12)
-        table.add_column("Name", width=12)
-        table.add_column("Group", width=12)
-        table.add_column("Devices", width=12)
-        table.add_column("Status", width=12)
+        table = create_table(
+            ["ID", "Name", "Group", "Devices", "Status"], "bold magenta")
         for node in nodes:
             group = storage.get_group_name(node[1])
             devices = storage.get_device_count_by_edge_node(node[0])
@@ -63,12 +87,8 @@ class SparkplugREPL(cmd.Cmd):
 
     def list_all_devices(self):
         devices = storage.get_devices()
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("ID", width=12)
-        table.add_column("Name", width=12)
-        table.add_column("Group", width=12)
-        table.add_column("Node", width=12)
-        table.add_column("Status", width=12)
+        table = create_table(
+            ["ID", "Name", "Group", "Node", "Status"], "bold magenta")
         for device in devices:
             node = storage.get_edge_node_name(device[1])
             group = storage.get_group_name_by_edge_node(device[1])
@@ -76,42 +96,44 @@ class SparkplugREPL(cmd.Cmd):
                           str(group), str(node), device[3])
         self.console.print(table)
 
+    def generate_device_details(self, device):
+        parts = device[0].split("/")
+        group, node, device = None, None, None
+        if len(parts) == 3:
+            group, node, device = parts
+        elif len(parts) == 2:
+            node, device = parts
+        else:
+            device = parts[0]
+        devices = storage.get_device_by_name(
+            group, node, device)
+        table = create_table(["ID", "Name", "Group", "Node", "Status",
+                             "Metrics (Name, Value, Last Updated)"], "bold magenta")
+        for device in devices:
+            node = storage.get_edge_node_name(device[1])
+            group = storage.get_group_name_by_edge_node(device[1])
+            metrics = storage.get_metrics_by_device(device[0])
+            metrics_table = create_table(
+                ["Name", "Value", "Updated"], show_header=False)
+            for metric in metrics:
+                value = metric[2]
+                if metric[1] == "string":
+                    value = "'" + value + "'"
+                elif metric[1] == "boolean":
+                    value = str(value).lower()
+                elif metric[1] == "float":
+                    value = "{:.2f}".format(value)
+                metrics_table.add_row(metric[0], str(value),
+                                      unix_time_diff_to_string(metric[3]))
+                metrics_table.add_section()
+            table.add_row(str(device[0]), device[2],
+                          str(group), str(node), device[3], metrics_table)
+            table.add_section()
+        return table
+
     def list_devices(self, device):
         if len(device) > 0:
-            parts = device[0].split("/")
-            group, node, device = None, None, None
-            if len(parts) == 3:
-                group, node, device = parts
-            elif len(parts) == 2:
-                node, device = parts
-            else:
-                device = parts[0]
-            devices = storage.get_device_by_name(
-                group, node, device)
-            table = Table(show_header=True, header_style="bold magenta")
-            table.add_column("ID", width=12)
-            table.add_column("Name", width=12)
-            table.add_column("Group", width=12)
-            table.add_column("Node", width=12)
-            table.add_column("Status", width=12)
-            table.add_column(
-                "Metrics (Name, Value, Last Updated)", no_wrap=True)
-            for device in devices:
-                node = storage.get_edge_node_name(device[1])
-                group = storage.get_group_name_by_edge_node(device[1])
-                metrics = storage.get_metrics_by_device(device[0])
-                metrics_table = Table(show_header=False)
-                metrics_table.add_column("Name")
-                metrics_table.add_column("Value")
-                metrics_table.add_column("Updated")
-                for metric in metrics:
-                    metrics_table.add_row(metric[0], str(metric[2]),
-                                          unix_time_diff_to_string(metric[3]))
-                    metrics_table.add_section()
-                table.add_row(str(device[0]), device[2],
-                              str(group), str(node), device[3], metrics_table)
-                table.add_section()
-            self.console.print(table)
+            self.console.print(self.generate_device_details(device))
         else:
             self.list_all_devices()
 
@@ -136,7 +158,11 @@ class SparkplugREPL(cmd.Cmd):
                         value = storage.execute_query(
                             "select * from Metric" + metric[3].capitalize() + " where metric_id = ? order by timestamp desc limit 1", (metric[0],))
                         metric_label = Text(metric[2] + " (type=" + metric[3] + ((", value=" + str(
-SORT
+                            value[0][1]) + ", timestamp=" + str(value[0][2]) + ")") if len(value) > 0 else ")"))
+                        branch_device.add(
+                            metric_label, guide_style="tree.line")
+            self.console.print(branch_group)
+
     def do_get(self, line):
         """ 
 Get information about a specific group, node or device.
@@ -158,3 +184,21 @@ If there are multiple matches for a name, all of them will be listed.
                 self.show_error("Unknown category " + parts[0], "get")
         else:
             self.list_all()
+
+    def do_watch(self, line):
+        """
+Watch a specific device for live changes.
+watch <device_name>
+If multiple devices match the name, all of them will be watched.
+Press Ctrl+C to exit the live view.
+        """
+        if line == "":
+            self.show_error("No device name provided", "watch")
+            return
+        with Live(self.generate_device_details([line]), refresh_per_second=1) as live:
+            while True:
+                try:
+                    time.sleep(1)
+                    live.update(self.generate_device_details([line]))
+                except KeyboardInterrupt:
+                    break
