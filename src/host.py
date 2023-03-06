@@ -3,7 +3,6 @@ import sparkplug_b_pb2 as payload
 import json
 import time
 import storage
-import repl
 
 
 def metric(payload1, alias, value, name=None, birth=False):
@@ -64,8 +63,10 @@ class SparkplugHost:
         self.config = config
         self.client = mqtt.Client()
         self.ts = int(time.time())
+        print("Setting WILL message..")
         self.client.will_set("spBv1.0/STATE/" + self.config["id"],
                              json.dumps({"online": False, "timestamp": self.ts}), qos=1, retain=True)
+        print("Connecting to MQTT broker..")
         self.client.connect(self.config["mqtt"]
                             ["host"], self.config["mqtt"]["port"])
         self.client.subscribe("spBv1.0/STATE/" + self.config["id"])
@@ -73,9 +74,7 @@ class SparkplugHost:
         self.edgeNodeSeq = {}  # maps the sequence number to each edge node
         self.edgeNodeAlive = {}  # maps the alive status to each edge node
         # register handlers
-        self.client.loop_start()
-        self.client.publish("spBv1.0/STATE/" + self.config["id"],
-                            payload=json.dumps({"online": True, "timestamp": self.ts}), qos=1, retain=True)
+        print("Registering handlers..")
         for group in config["zones"]:
             self.client.subscribe("spBv1.0/" + group + "/NBIRTH/#")
             self.client.message_callback_add(
@@ -96,10 +95,11 @@ class SparkplugHost:
             self.client.message_callback_add(
                 "spBv1.0/" + group + "/DDEATH/#", self.handle_action)
 
+    def connect(self):
         # start network traffic and publish birth certificate
-        self.client.loop_start()
         self.client.publish("spBv1.0/STATE/" + self.config["id"],
                             payload=json.dumps({"online": True, "timestamp": self.ts}), qos=1, retain=True)
+        self.client.loop_forever()
 
     def extract_payload(self, msg):
         p = payload.Payload()
@@ -195,14 +195,23 @@ def load_config():
 
 
 def main():
+    print("Loading config..")
     config = load_config()
-    storage.setup(config)
+    print("Setting up storage..")
+    storage.setup()
+    print("Starting host..")
     host = SparkplugHost(config)
 
-    while True:
-        repl.SparkplugREPL().cmdloop()
-
-    # host is now online, register the appropriate handlers
+    try:
+        print("Starting processing loop..")
+        host.connect()
+    except KeyboardInterrupt:
+        storage.shutdown()
+        print("Shutting down..")
+    except:
+        storage.shutdown()
+        print("[Error] Error occurred:")
+        raise
 
 
 if __name__ == "__main__":
