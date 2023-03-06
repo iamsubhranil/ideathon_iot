@@ -1,6 +1,6 @@
-import storage
 import cmd
 import time
+import model
 from rich import print, pretty
 from rich.console import Console
 from rich.table import Table
@@ -71,35 +71,35 @@ exit
         self.print_help_text(self.do_watch.__doc__)
 
     def list_groups(self):
-        groups = storage.get_groups()
+        groups = model.get_groups()
         table = create_table(
             ["ID", "Name", "Edge nodes", "Devices"], "bold magenta")
         for group in groups:
-            nodes = storage.get_edge_node_count(group[0])
-            devices = storage.get_device_count_by_group(group[0])
-            table.add_row(str(group[0]), group[1], str(nodes), str(devices))
+            nodes = len(group.nodes)
+            devices = len(group.devices)
+            table.add_row(str(group.id), group.name, str(nodes), str(devices))
         self.console.print(table)
 
     def list_nodes(self):
-        nodes = storage.get_edge_nodes()
+        nodes = model.get_nodes()
         table = create_table(
             ["ID", "Name", "Group", "Devices", "Status"], "bold magenta")
         for node in nodes:
-            group = storage.get_group_name(node[1])
-            devices = storage.get_device_count_by_edge_node(node[0])
-            table.add_row(str(node[0]), node[2],
-                          group, str(devices), node[3])
+            group = node.group.name
+            devices = len(node.devices)
+            table.add_row(str(node.id), node.name,
+                          group, str(devices), node.status)
         self.console.print(table)
 
     def list_all_devices(self):
-        devices = storage.get_devices()
+        devices = model.get_devices()
         table = create_table(
             ["ID", "Name", "Group", "Node", "Status"], "bold magenta")
         for device in devices:
-            node = storage.get_edge_node_name(device[1])
-            group = storage.get_group_name_by_edge_node(device[1])
-            table.add_row(str(device[0]), device[2],
-                          str(group), str(node), device[3])
+            node = device.node.name
+            group = device.group.name
+            table.add_row(str(device.id), device.name,
+                          str(group), str(node), device.status)
         self.console.print(table)
 
     def generate_device_details(self, device):
@@ -111,29 +111,28 @@ exit
             node, device = parts
         else:
             device = parts[0]
-        devices = storage.get_device_by_name(
-            group, node, device)
+        devices = model.get_device(group, node, device)
         table = create_table(["ID", "Name", "Group", "Node", "Status",
                              "Metrics (Name, Value, Last Updated)"], "bold magenta")
         for device in devices:
-            node = storage.get_edge_node_name(device[1])
-            group = storage.get_group_name_by_edge_node(device[1])
-            metrics = storage.get_metrics_by_device(device[0])
+            node = device.node.name
+            group = device.group.name
+            metrics = device.metrics
             metrics_table = create_table(
                 ["Name", "Value", "Updated"], show_header=False)
             for metric in metrics:
-                value = metric[2]
-                if metric[1] == "string":
+                value = metric.value
+                if metric.type == "string":
                     value = "'" + value + "'"
-                elif metric[1] == "boolean":
+                elif metric.type == "boolean":
                     value = str(value).lower()
-                elif metric[1] == "float":
+                elif metric.type == "float":
                     value = "{:.2f}".format(value)
-                metrics_table.add_row(metric[0], str(value),
-                                      unix_time_diff_to_string(metric[3]))
+                metrics_table.add_row(metric.name, str(metric.value),
+                                      unix_time_diff_to_string(metric.timestamp))
                 metrics_table.add_section()
-            table.add_row(str(device[0]), device[2],
-                          str(group), str(node), device[3], metrics_table)
+            table.add_row(str(device.id), device.name,
+                          str(group), str(node), device.status, metrics_table)
             table.add_section()
         return table
 
@@ -144,22 +143,22 @@ exit
             self.list_all_devices()
 
     def list_all(self):
-        groups = storage.get_groups()
+        groups = model.get_groups()
         for group in groups:
             branch_group = Tree(
-                Text(group[1], style="bold blue"), guide_style="bold blue")
-            nodes = storage.get_edge_nodes_by_group(group[0])
+                Text(group.name, style="bold blue"), guide_style="bold blue")
+            nodes = group.nodes
             for node in nodes:
                 branch_node = branch_group.add(
-                    Text(node[2], style="bold green"), guide_style="bold green")
-                devices = storage.get_devices_by_edge_node(node[0])
+                    Text(node.name, style="bold green"), guide_style="bold green")
+                devices = node.devices
                 for device in devices:
                     branch_device = branch_node.add(
-                        Text(device[2], style="bold white") + " (id=" + str(device[0]) + ")", guide_style="bold white")
-                    metrics = storage.get_metrics_by_device(device[0])
+                        Text(device.name, style="bold white") + " (id=" + str(device.id) + ")", guide_style="bold white")
+                    metrics = device.metrics
                     for metric in metrics:
-                        metric_label = Text(metric[0] + " (type=" + metric[1] + (", value=" + str(
-                            metric[2]) + ", timestamp=" + str(metric[3]) + ")"))
+                        metric_label = Text(metric.name + " (type=" + metric.type + (", value=" + str(
+                            metric.value) + ", timestamp=" + str(metric.timestamp) + ")"))
                         branch_device.add(
                             metric_label, guide_style="tree.line")
             self.console.print(branch_group)
@@ -204,14 +203,36 @@ Press Ctrl+C to exit the live view.
                 except KeyboardInterrupt:
                     break
 
+    def do_expr(self, line):
+        """
+Evaluate an expression.
+expr <expression>
+You can evaluate any expression that is valid in Python.
+To get the list of all devices, use model.get_devices().
+To get the list of all nodes, use model.get_nodes().
+To get the list of all groups, use model.get_groups().
+You can apply any transformation to the list of devices, nodes or groups.
+For example,
+    expr max(model.get_device("group1", "node1", "device1")[0].metric.temperature.values)
+        """
+        if line == "":
+            self.show_error("No expression provided", "expr")
+            return
+        try:
+            e = eval(line, model.__dict__)
+            self.console.print(e)
+        except Exception as e:
+            print(str(e.__class__.__name__) + ":", e)
+            self.show_error("Error in expression", "expr")
+
 
 def main():
-    storage.setup()
+    model.startup()
     while True:
         try:
             SparkplugREPL().cmdloop()
         except KeyboardInterrupt:
-            storage.shutdown()
+            model.shutdown()
             break
 
 

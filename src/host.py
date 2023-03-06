@@ -2,7 +2,7 @@ import paho.mqtt.client as mqtt
 import sparkplug_b_pb2 as payload
 import json
 import time
-import storage
+import model
 
 
 def metric(payload1, alias, value, name=None, birth=False):
@@ -29,9 +29,8 @@ def metric(payload1, alias, value, name=None, birth=False):
         metric.boolean_value = value
     metric.timestamp = int(time.time())
 
+
 # metrics is a list of name:value
-
-
 def generate_metric(seq, metrics, mapping, birth=False, timestamp=int(time.time())):
     payload1 = payload.Payload()
     payload1.timestamp = timestamp
@@ -54,7 +53,7 @@ def get_metric_type_string(metric):
     elif metric.datatype == payload.String:
         return "string", metric.string_value
     else:
-        print(metric.datatype)
+        raise Exception("Unknown metric type")
 
 
 class SparkplugHost:
@@ -145,24 +144,25 @@ class SparkplugHost:
         print("[NEW] Node discovered " + node_name)
         self.edgeNodeSeq[group_name + node_name] = payload.seq
         self.edgeNodeAlive[group_name + node_name] = True
-        storage.insert_group(group_name)
-        storage.insert_edge_node(
-            group_name, node_name, "ONLINE", payload.timestamp, 0)
+        model.create_group(group_name)
+        node = model.create_node(group_name, node_name)
+        node.status = "ONLINE"
+        node.birth_timestamp = payload.timestamp
+        node.death_timestamp = 0
 
     def handle_dbirth(self, group_name, node_name, device_name, payload):
         print("[NEW] Device discovered " + node_name + "/" + device_name)
-        storage.insert_device(group_name, node_name,
-                              device_name, "ONLINE", payload.timestamp, 0)
+        device = model.create_device(group_name, node_name, device_name)
+        device.status = "ONLINE"
+        device.birth_timestamp = payload.timestamp
+        device.death_timestamp = 0
         if len(payload.metrics) == 0:
             raise Exception("No metrics in device birth certificate")
         for metric in payload.metrics:
             metric_type_str, value = get_metric_type_string(metric)
-            storage.insert_metric(group_name, node_name,
-                                  device_name, metric.name, metric_type_str)
-            metric_id = storage.get_metric_id(
-                group_name, node_name, device_name, metric.name)
-            storage.insert_metric_value(
-                metric_id, metric_type_str, value, payload.timestamp)
+            metric = model.create_metric(group_name, node_name,
+                                         device_name, metric.name, metric_type_str)
+            metric.value = (value, payload.timestamp)
 
     def handle_ndata(self, group_name, node_name, payload):
         print("[NEW] Node discovered " + node_name)
@@ -171,22 +171,23 @@ class SparkplugHost:
     def handle_ddata(self, group_name, node_name, device_name, payload):
         # print("DDATA: " + group_name + "/" + node_name + "/" + device_name)
         for metric in payload.metrics:
-            metric_type_str, value = get_metric_type_string(metric)
-            metric_id = storage.get_metric_id(
-                group_name, node_name, device_name, metric.name)
-            storage.insert_metric_value(
-                metric_id, metric_type_str, value, payload.timestamp)
+            for metric_i in model.get_device(group_name, node_name, device_name)[0].metrics:
+                if metric_i.name == metric.name:
+                    _, value = get_metric_type_string(metric)
+                    metric_i.value = (value, payload.timestamp)
 
     def handle_ndeath(self, group_name, node_name, payload):
         # print("NDEATH: " + node_name)
         self.edgeNodeAlive[group_name + node_name] = False
-        storage.update_edge_node_status(
-            group_name, node_name, "OFFLINE", payload.timestamp)
+        node = model.get_node(group_name, node_name)[0]
+        node.status = "OFFLINE"
+        node.death_timestamp = payload.timestamp
 
     def handle_ddeath(self, group_name, node_name, device_name, payload):
         # print("DDEATH: " + node_name + "/" + device_name)
-        storage.update_device_status(
-            group_name, node_name, device_name, "OFFLINE", payload.timestamp)
+        device = model.get_device(group_name, node_name, device_name)[0]
+        device.status = "OFFLINE"
+        device.death_timestamp = payload.timestamp
 
 
 def load_config():
@@ -197,8 +198,8 @@ def load_config():
 def main():
     print("Loading config..")
     config = load_config()
-    print("Setting up storage..")
-    storage.setup()
+    print("Setting up model..")
+    model.startup()
     print("Starting host..")
     host = SparkplugHost(config)
 
@@ -206,10 +207,10 @@ def main():
         print("Starting processing loop..")
         host.connect()
     except KeyboardInterrupt:
-        storage.shutdown()
+        model.shutdown()
         print("Shutting down..")
     except:
-        storage.shutdown()
+        model.shutdown()
         print("[Error] Error occurred:")
         raise
 
