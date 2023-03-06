@@ -219,7 +219,7 @@ For example,
             self.show_error("No expression provided", "expr")
             return
         try:
-            e = eval(line, model.__dict__)
+            e = eval(line, model.RUNTIME_DICT)
             self.console.print(e)
         except Exception as e:
             print(str(e.__class__.__name__) + ":", e)

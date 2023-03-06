@@ -1,5 +1,6 @@
 import storage
 from typing import Any
+import math
 
 
 class Queryable(object):
@@ -42,7 +43,10 @@ class Queryable(object):
             super().__setattr__(__name, __value)
 
     def __str__(self):
-        return "<" + self.type_name + "#" + str(self.id) + ">"
+        return self.type_name + "<id=" + str(self.id) + ",name=" + str(self.name) + ">"
+
+    def __repr__(self):
+        return self.__str__()
 
 
 class NamedMetric(object):
@@ -223,3 +227,19 @@ def startup():
 
 def shutdown():
     storage.shutdown()
+
+
+RUNTIME_DICT = {
+    "math": math,
+    "get": get,
+    "get_group": get_group,
+    "get_node": get_node,
+    "get_device": get_device,
+    "get_groups": get_groups,
+    "get_nodes": get_nodes,
+    "get_devices": get_devices,
+    "Node": Node,
+    "Group": Group,
+    "Device": Device,
+    "Metric": Metric,
+}
