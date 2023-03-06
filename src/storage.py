@@ -16,9 +16,12 @@ MetricBool(metric_id refr, metric_value, timestamp)
 
 from threading import Lock
 import sqlite3
+import json
 
 CONNECTION: sqlite3.Connection = None
 WRITELOCK: Lock = Lock()
+
+SETUP_DONE = False
 
 
 def serialized(func):
@@ -28,7 +31,11 @@ def serialized(func):
     return wrapper
 
 
-def setup(config):
+def setup():
+    global SETUP_DONE
+    if SETUP_DONE:
+        return
+    config = json.loads(open("config.json", "rb").read())
     global CONNECTION
     CONNECTION = sqlite3.connect(config["db"]["url"], check_same_thread=False)
     c = CONNECTION.cursor()
@@ -40,12 +47,29 @@ def setup(config):
     c.execute("CREATE TABLE IF NOT EXISTS MetricInt (metric_id INTEGER REFERENCES Metric, metric_value INTEGER NOT NULL, timestamp INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS MetricFloat (metric_id INTEGER RERFERENCES Metric, metric_value REAL NOT NULL, timestamp INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS MetricBoolean (metric_id INTEGER REFERENCES Metric, metric_value INTEGER NOT NULL, timestamp INTEGER)")
+    SETUP_DONE = True
+
+
+def shutdown():
+    global CONNECTION
+    CONNECTION.close()
+
+
+def set_return_dict(return_dict: bool):
+    global CONNECTION
+    if return_dict:
+        CONNECTION.row_factory = sqlite3.Row
+    else:
+        CONNECTION.row_factory = None
 
 
 def execute_query(query, args=()):
     c = CONNECTION.cursor()
     # print("QUERY: " + query + " ARGS: " + str(args))
     ret = c.execute(query, args).fetchall()
+    # these calls are serialized, so we can commit here
+    if query.startswith("INSERT") or query.startswith("UPDATE") or query.startswith("DELETE"):
+        CONNECTION.commit()
     return ret
 
 
@@ -173,3 +197,27 @@ def get_metrics_by_device(device_id):
         ret.append((metric[2], metric[3], metric_value[0], metric_value[1]))
 
     return ret
+
+
+def get_group_by_id(group_id):
+    return execute_query("SELECT * FROM Groups WHERE group_id = ?", (group_id,))[0]
+
+
+def get_edge_node_by_id(edge_node_id):
+    return execute_query("SELECT * FROM EdgeNode WHERE edge_node_id = ?", (edge_node_id,))[0]
+
+
+def get_device_by_id(device_id):
+    return execute_query("SELECT * FROM Device WHERE device_id = ?", (device_id,))[0]
+
+
+def get_devices_by_edge_node(edge_node_id):
+    return execute_query("SELECT * FROM Device WHERE edge_node_id = ?", (edge_node_id,))
+
+
+def get_devices_by_group(group_id):
+    return execute_query("SELECT * FROM Device WHERE edge_node_id in (SELECT edge_node_id FROM EdgeNode WHERE group_id = ?)", (group_id,))
+
+
+def get_edge_nodes_by_group(group_id):
+    return execute_query("SELECT * FROM EdgeNode WHERE group_id = ?", (group_id,))
