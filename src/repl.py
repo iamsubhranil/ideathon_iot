@@ -78,6 +78,12 @@ exit
     def help_watch(self):
         self.print_help_text(self.do_watch.__doc__)
 
+    def help_expr(self):
+        self.print_help_text(self.do_expr.__doc__)
+
+    def help_assign(self):
+        self.print_help_text(self.do_assign.__doc__)
+
     # List all groups in the system
     def list_groups(self):
         groups = model.get_groups()
@@ -230,7 +236,7 @@ To get the list of all nodes, use model.get_nodes().
 To get the list of all groups, use model.get_groups().
 You can apply any transformation to the list of devices, nodes or groups.
 For example,
-    expr max(model.get_device("group1", "node1", "device1")[0].metric.temperature.values)
+    expr max(get("group1/node0/device1").metric.temperature.values)
         """
         if line == "":
             self.show_error("No expression provided", "expr")
@@ -241,6 +247,26 @@ For example,
         except Exception as e:
             print(str(e.__class__.__name__) + ":", e)
             self.show_error("Error in expression", "expr")
+
+    def do_assign(self, line):
+        """
+Assign a value to a variable.
+assign <variable_name> <expression>
+Expression will be evaluated following the same rules as expr.
+        """
+        if line == "":
+            self.show_error("No expression provided", "assign")
+            return
+        parts = line.split(" ")
+        if len(parts) < 2:
+            self.show_error("No expression provided", "assign")
+            return
+        try:
+            e = eval(" ".join(parts[1:]), model.RUNTIME_DICT)
+            model.RUNTIME_DICT[parts[0]] = e
+        except Exception as e:
+            print(str(e.__class__.__name__) + ":", e)
+            self.show_error("Error in expression", "assign")
 
 
 def main():
