@@ -40,19 +40,19 @@ async def get_devices() -> list[dict]:
 # get group details by id
 @app.get("/groups/{group_id}")
 async def get_group_by_id(group_id: int) -> list[dict]:
-    return to_dict(storage.get_group_by_id(group_id))
+    return to_dict([storage.get_group_by_id(group_id)])
 
 
 # get edge node details by id
 @app.get("/edge_nodes/{edge_node_id}")
 async def get_edge_node_by_id(edge_node_id: int) -> list[dict]:
-    return to_dict(storage.get_edge_node_by_id(edge_node_id))
+    return to_dict([storage.get_edge_node_by_id(edge_node_id)])
 
 
 # get device details by id
 @app.get("/devices/{device_id}")
 async def get_device_by_id(device_id: int) -> list[dict]:
-    return to_dict(storage.get_device_by_id(device_id))
+    return to_dict([storage.get_device_by_id(device_id)])
 
 
 # get all devices for a given group
