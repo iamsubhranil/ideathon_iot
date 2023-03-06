@@ -1,13 +1,12 @@
 import storage
 import cmd
+import time
 from rich import print, pretty
 from rich.console import Console
 from rich.table import Table
 from rich.tree import Tree
 from rich.text import Text
 from rich.live import Live
-
-import time
 
 
 def unix_time_diff_to_string(time1):
@@ -33,12 +32,16 @@ class SparkplugREPL(cmd.Cmd):
 
     def __init__(self):
         cmd.Cmd.__init__(self)
-        self.prompt = "[iot] "
+        self.prompt = "=> "
         self.console = Console()
         pretty.install()
 
     def do_exit(self, line):
-        return False
+        """
+Exit from the REPL.
+exit
+        """
+        raise KeyboardInterrupt
 
     def show_error(self, message, command):
         self.console.print(message + "!", style="bold red")
@@ -57,6 +60,9 @@ class SparkplugREPL(cmd.Cmd):
         self.console.print("\n[u]Details:[/u]")
         for line in lines[3:]:
             self.console.print(line)
+
+    def help_exit(self):
+        self.print_help_text(self.do_exit.__doc__)
 
     def help_get(self):
         self.print_help_text(self.do_get.__doc__)
@@ -138,27 +144,22 @@ class SparkplugREPL(cmd.Cmd):
             self.list_all_devices()
 
     def list_all(self):
-        groups = storage.execute_query("select * from groups")
+        groups = storage.get_groups()
         for group in groups:
             branch_group = Tree(
                 Text(group[1], style="bold blue"), guide_style="bold blue")
-            nodes = storage.execute_query(
-                "select * from edgenode where group_id = ?", (group[0],))
+            nodes = storage.get_edge_nodes_by_group(group[0])
             for node in nodes:
                 branch_node = branch_group.add(
                     Text(node[2], style="bold green"), guide_style="bold green")
-                devices = storage.execute_query(
-                    "select * from device where edge_node_id = ?", (node[0],))
+                devices = storage.get_devices_by_edge_node(node[0])
                 for device in devices:
                     branch_device = branch_node.add(
                         Text(device[2], style="bold white") + " (id=" + str(device[0]) + ")", guide_style="bold white")
-                    metrics = storage.execute_query(
-                        "select * from metric where device_id = ?", (device[0],))
+                    metrics = storage.get_metrics_by_device(device[0])
                     for metric in metrics:
-                        value = storage.execute_query(
-                            "select * from Metric" + metric[3].capitalize() + " where metric_id = ? order by timestamp desc limit 1", (metric[0],))
-                        metric_label = Text(metric[2] + " (type=" + metric[3] + ((", value=" + str(
-                            value[0][1]) + ", timestamp=" + str(value[0][2]) + ")") if len(value) > 0 else ")"))
+                        metric_label = Text(metric[0] + " (type=" + metric[1] + (", value=" + str(
+                            metric[2]) + ", timestamp=" + str(metric[3]) + ")"))
                         branch_device.add(
                             metric_label, guide_style="tree.line")
             self.console.print(branch_group)
@@ -202,3 +203,17 @@ Press Ctrl+C to exit the live view.
                     live.update(self.generate_device_details([line]))
                 except KeyboardInterrupt:
                     break
+
+
+def main():
+    storage.setup()
+    while True:
+        try:
+            SparkplugREPL().cmdloop()
+        except KeyboardInterrupt:
+            storage.shutdown()
+            break
+
+
+if __name__ == "__main__":
+    main()
