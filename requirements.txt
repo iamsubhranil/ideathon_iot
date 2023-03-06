@@ -2,3 +2,5 @@
 paho-mqtt # paho-mqtt as client
 protobuf # protobuf as message format
 rich # rich as terminal output
+fastapi # fastapi as rest api
+uvicorn # uvicorn as web server
