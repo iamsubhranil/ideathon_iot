@@ -9,6 +9,7 @@ from rich.text import Text
 from rich.live import Live
 
 
+# Convert a unix time difference to a string
 def unix_time_diff_to_string(time1):
     unix_time_diff = int(time.time() - time1)
     if unix_time_diff < 60:
@@ -21,6 +22,7 @@ def unix_time_diff_to_string(time1):
         return str(unix_time_diff // 86400) + " days"
 
 
+# Create a rich table
 def create_table(cols, header_style=None, show_header=True):
     table = Table(show_header=show_header, header_style=header_style)
     for col in cols:
@@ -28,6 +30,7 @@ def create_table(cols, header_style=None, show_header=True):
     return table
 
 
+# Base class for the REPL
 class SparkplugREPL(cmd.Cmd):
 
     def __init__(self):
@@ -36,6 +39,7 @@ class SparkplugREPL(cmd.Cmd):
         self.console = Console()
         pretty.install()
 
+    # Exit the REPL
     def do_exit(self, line):
         """
 Exit from the REPL.
@@ -43,10 +47,13 @@ exit
         """
         raise KeyboardInterrupt
 
+    # Show an error message
     def show_error(self, message, command):
         self.console.print(message + "!", style="bold red")
         self.console.print("Try [b]'help " + command +
                            "'[/b] for more information.")
+
+    # Print a formatted help text for a command
 
     def print_help_text(self, text):
         lines = text.splitlines()
@@ -61,6 +68,7 @@ exit
         for line in lines[3:]:
             self.console.print(line)
 
+    # Show help for a command
     def help_exit(self):
         self.print_help_text(self.do_exit.__doc__)
 
@@ -70,6 +78,7 @@ exit
     def help_watch(self):
         self.print_help_text(self.do_watch.__doc__)
 
+    # List all groups in the system
     def list_groups(self):
         groups = model.get_groups()
         table = create_table(
@@ -80,6 +89,7 @@ exit
             table.add_row(str(group.id), group.name, str(nodes), str(devices))
         self.console.print(table)
 
+    # List all nodes in the system
     def list_nodes(self):
         nodes = model.get_nodes()
         table = create_table(
@@ -91,6 +101,7 @@ exit
                           group, str(devices), node.status)
         self.console.print(table)
 
+    # List all devices in the system
     def list_all_devices(self):
         devices = model.get_devices()
         table = create_table(
@@ -102,6 +113,7 @@ exit
                           str(group), str(node), device.status)
         self.console.print(table)
 
+    # Generate a detailed overview of a device
     def generate_device_details(self, device):
         parts = device[0].split("/")
         group, node, device = None, None, None
@@ -136,12 +148,14 @@ exit
             table.add_section()
         return table
 
+    # List all devices in the system
     def list_devices(self, device):
         if len(device) > 0:
             self.console.print(self.generate_device_details(device))
         else:
             self.list_all_devices()
 
+    # List the system topology
     def list_all(self):
         groups = model.get_groups()
         for group in groups:
@@ -163,6 +177,7 @@ exit
                             metric_label, guide_style="tree.line")
             self.console.print(branch_group)
 
+    # Geet information about a specific group, node or device
     def do_get(self, line):
         """ 
 Get information about a specific group, node or device.
@@ -185,6 +200,7 @@ If there are multiple matches for a name, all of them will be listed.
         else:
             self.list_all()
 
+    # Watch a specific device for live changes
     def do_watch(self, line):
         """
 Watch a specific device for live changes.
@@ -203,6 +219,7 @@ Press Ctrl+C to exit the live view.
                 except KeyboardInterrupt:
                     break
 
+    # Evaluate an expression
     def do_expr(self, line):
         """
 Evaluate an expression.

@@ -2,11 +2,8 @@ import fastapi
 import model
 from typing import Any
 
+# The FastAPI app
 app = fastapi.FastAPI()
-
-
-def to_dict(rows):
-    return [dict(row) for row in rows]
 
 
 @app.on_event("startup")
@@ -19,6 +16,8 @@ async def shutdown_event():
     model.shutdown()
 
 
+# Extract the given attributes from the given objects
+# and return a list of dictionaries
 def extract(objects: list[Any], attrs: list[str]) -> list[dict[str, Any]]:
     return [{attr: getattr(object, attr) for attr in attrs} for object in objects]
 
