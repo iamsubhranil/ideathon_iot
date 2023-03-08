@@ -47,9 +47,9 @@ async def get_group_by_id(group_id: int) -> list[dict]:
 
 
 # get edge node details by id
-@app.get("/nodes/{edge_node_id}")
-async def get_edge_node_by_id(edge_node_id: int) -> list[dict]:
-    return extract([model.Node(edge_node_id)], ["id", "name", "status", "birth_timestamp", "death_timestamp"])
+@app.get("/nodes/{node_id}")
+async def get_edge_node_by_id(node_id: int) -> list[dict]:
+    return extract([model.Node(node_id)], ["id", "name", "status", "birth_timestamp", "death_timestamp"])
 
 
 # get device details by id
@@ -65,9 +65,9 @@ async def get_devices_by_group(group_id: int) -> list[dict]:
 
 
 # get all devices for a given edge node
-@app.get("/nodes/{edge_node_id}/devices")
-async def get_devices_by_edge_node(edge_node_id: int) -> list[dict]:
-    return extract(model.Node(edge_node_id).devices, ["id", "name", "status", "birth_timestamp", "death_timestamp"])
+@app.get("/nodes/{node_id}/devices")
+async def get_devices_by_edge_node(node_id: int) -> list[dict]:
+    return extract(model.Node(node_id).devices, ["id", "name", "status", "birth_timestamp", "death_timestamp"])
 
 
 # get all nodes for a given group
