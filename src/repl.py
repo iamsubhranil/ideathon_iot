@@ -234,9 +234,10 @@ Press Ctrl+C to exit the live view.
 Evaluate an expression.
 expr <expression>
 You can evaluate any expression that is valid in Python.
-To get the list of all devices, use model.get_devices().
-To get the list of all nodes, use model.get_nodes().
-To get the list of all groups, use model.get_groups().
+To get the list of all devices, use get_devices().
+To get the list of all nodes, use get_nodes().
+To get the list of all groups, use get_groups().
+To retrieve a specific device/node/group, use get("group1/node0/device1").
 You can apply any transformation to the list of devices, nodes or groups.
 For example,
     expr max(get("group1/node0/device1").metric.temperature.values)
