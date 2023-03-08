@@ -71,7 +71,7 @@ async def get_devices_by_edge_node(edge_node_id: int) -> list[dict]:
 
 
 # get all nodes for a given group
-@app.get("/groups/{group_id}/edge_nodes")
+@app.get("/groups/{group_id}/nodes")
 async def get_edge_nodes_by_group(group_id: int) -> list[dict]:
     return extract(model.Group(group_id).nodes, ["id", "name", "status", "birth_timestamp", "death_timestamp"])
 
