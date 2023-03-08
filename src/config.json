@@ -14,9 +14,9 @@
 	"zones": [
 		"bedroom",
 		"kitchen",
-		"living room",
+		"living_room",
 		"bathroom",
-		"dining room"
+		"dining_room"
 	],
 	"db": {
 		"type": "sqlite",
