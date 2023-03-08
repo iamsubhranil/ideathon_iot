@@ -209,13 +209,16 @@ def get(type, id, attr):
             metric_type = execute_query(
                 "SELECT metric_type FROM Metric WHERE metric_id = ?", (id,))[0][0]
             table_name = "Metric" + metric_type.capitalize()
-            query = "SELECT metric_value FROM {} WHERE metric_id = ?".format(
+            query = "SELECT metric_value"
+            if attr == "values":
+                query += ", metric_timestamp"
+            query += " FROM {} WHERE metric_id = ?".format(
                 table_name)
             if attr == "value":
                 query += " ORDER BY metric_timestamp DESC LIMIT 1"
                 return execute_query(query, (id,))[0][0]
             else:
-                return flatten_tuple_list(execute_query(query, (id,)))
+                return execute_query(query, (id,))
         elif attr == "timestamp":
             metric_type = execute_query(
                 "SELECT metric_type FROM Metric WHERE metric_id = ?", (id,))[0][0]
