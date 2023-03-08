@@ -192,8 +192,12 @@ def get_device(group_name, node_name, device_name) -> list[Device]:
     devices = storage.get_device_by_name(
         group_name, node_name, device_name)
     if len(devices) == 0:
-        raise ValueError("No such device found: " +
-                         group_name + "/" + node_name + "/" + device_name)
+        full_name = ""
+        full_name += (group_name + "/") if group_name else ""
+        full_name += (node_name + "/") if node_name else ""
+        full_name += device_name
+
+        raise ValueError("No such device found: " + full_name)
     return [Device(device_id[0]) for device_id in devices]
 
 

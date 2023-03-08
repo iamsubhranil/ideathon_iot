@@ -195,14 +195,17 @@ If there are multiple matches for a name, all of them will be listed.
         """
         if line != "":
             parts = line.split(" ")
-            if parts[0] == "group":
-                self.list_groups()
-            elif parts[0] == "node":
-                self.list_nodes()
-            elif parts[0] == "device":
-                self.list_devices(parts[1:])
-            else:
-                self.show_error("Unknown category " + parts[0], "get")
+            try:
+                if parts[0] == "group":
+                    self.list_groups()
+                elif parts[0] == "node":
+                    self.list_nodes()
+                elif parts[0] == "device":
+                    self.list_devices(parts[1:])
+                else:
+                    self.show_error("Unknown category " + parts[0], "get")
+            except:
+                self.show_error("Unable to find item", "get")
         else:
             self.list_all()
 
