@@ -4,4 +4,4 @@
 4. Provide config to print out all values in CSV in terminal
 5. Provide a CLI option to run an one of query
 6. Provide some pre-defined queries
-7. If possible, provide a way to plot the data
+7. Provide a way to plot the data
