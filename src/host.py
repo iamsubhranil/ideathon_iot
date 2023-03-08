@@ -68,25 +68,30 @@ def get_metric_type_string(metric):
 class SparkplugHost:
 
     # Initialize the MQTT client
-    def __init__(self, config):
-        self.config = config
+    # id -> the id of the host
+    # mqtt_details -> the details of the MQTT broker in a dictionary
+    # zones -> list of zones in the system
+    def __init__(self, id, mqtt_details, zones):
+        self.id = id
+        self.mqtt_details = mqtt_details
+        self.zones = zones
         self.client = mqtt.Client()
         self.ts = int(time.time())
-        print("Setting WILL message..")
-        self.client.will_set("spBv1.0/STATE/" + self.config["id"],
+        print("[" + id + "]" + " Setting WILL message..")
+        self.client.will_set("spBv1.0/STATE/" + self.id,
                              json.dumps({"online": False, "timestamp": self.ts}), qos=1, retain=True)
-        print("Connecting to MQTT broker..")
-        self.client.connect(self.config["mqtt"]
-                            ["host"], self.config["mqtt"]["port"])
-        self.client.subscribe("spBv1.0/STATE/" + self.config["id"])
+        print("[" + id + "]" + " Connecting to MQTT broker..")
+        self.client.connect(
+            self.mqtt_details["host"], self.mqtt_details["port"])
+        self.client.subscribe("spBv1.0/STATE/" + self.id)
 
         self.edgeNodeSeq = {}  # maps the sequence number to each edge node
         self.edgeNodeAlive = {}  # maps the alive status to each edge node
         # register handlers for all the actions in all of the zones
-        print("Registering handlers..")
+        print("[" + id + "]" + " Registering handlers..")
         event_types = ["NBIRTH", "DBIRTH",
                        "NDEATH", "DDEATH", "NDATA", "DDATA"]
-        for group in config["zones"]:
+        for group in zones:
             for event_type in event_types:
                 self.client.subscribe("spBv1.0/" + group + "/" +
                                       event_type + "/#")
@@ -95,9 +100,9 @@ class SparkplugHost:
 
     def connect(self):
         # start network traffic and publish birth certificate
-        self.client.publish("spBv1.0/STATE/" + self.config["id"],
+        self.client.publish("spBv1.0/STATE/" + self.id,
                             payload=json.dumps({"online": True, "timestamp": self.ts}), qos=1, retain=True)
-        self.client.loop_forever()
+        self.client.loop_start()
 
     # Extract the payload from the MQTT message
     def extract_payload(self, msg):
@@ -145,7 +150,7 @@ class SparkplugHost:
 
     # Handle a node birth message
     def handle_nbirth(self, group_name, node_name, payload):
-        print("[NEW] Node discovered " + node_name)
+        print("[" + self.id + "]" + " [NEW] Node discovered " + node_name)
         # set the sequence number for this node
         self.edgeNodeSeq[group_name + node_name] = payload.seq
         self.edgeNodeAlive[group_name + node_name] = True
@@ -159,7 +164,8 @@ class SparkplugHost:
 
     # Handle a device birth message
     def handle_dbirth(self, group_name, node_name, device_name, payload):
-        print("[NEW] Device discovered " + node_name + "/" + device_name)
+        print("[" + self.id + "]" + " [NEW] Device discovered " +
+              node_name + "/" + device_name)
         # create the device in the model
         device = model.create_device(group_name, node_name, device_name)
         # set the device status
@@ -178,7 +184,7 @@ class SparkplugHost:
 
     # Handle a node data message
     def handle_ndata(self, group_name, node_name, payload):
-        print("[NEW] Node discovered " + node_name)
+        print("[" + self.id + "]" + " [NEW] Node discovered " + node_name)
         self.edgeNodeSeq[group_name + node_name] += 1
         # currently ignored
 
@@ -221,12 +227,17 @@ def main():
     config = load_config()
     print("Setting up model..")
     model.startup()
-    print("Starting host..")
-    host = SparkplugHost(config)
+    print("Spawning hosts..")
+    hosts = []
+    for index, id in enumerate(config["ids"]):
+        hosts.append(SparkplugHost(id, config["mqtt"][index], config["zones"]))
 
     try:
         print("Starting processing loop..")
-        host.connect()
+        for host in hosts:
+            host.connect()
+        while True:
+            time.sleep(1)
     except KeyboardInterrupt:
         model.shutdown()
         print("Shutting down..")

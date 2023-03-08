@@ -1,12 +1,16 @@
 {
-	"id": "sparkplugHost1",
-	"mqtt": {
+	"ids": ["sparkplugHost1", "sparkplugHost2"],
+	"mqtt": [{
 		"host": "localhost",
 		"port": 1883,
 		"username": "mqtt",
 		"password": "mqtt"
-	},
-	"reordering_timeout": 1000,
+	}, {
+		"host": "localhost",
+		"port": 1884,
+		"username": "mqtt",
+		"password": "mqtt"
+	}],
 	"zones": [
 		"bedroom",
 		"kitchen",
@@ -19,5 +23,49 @@
 		"url": "sparkplug.db",
 		"username": "sparkplug",
 		"password": "sparkplug"
+	},
+
+	"client_node_count": 20,
+	"client_devices_per_node": 10,
+	"client_publish_interval_seconds": 5,
+	"client_metric_types": {
+		"temperature": "float",
+		"humidity": "float",
+		"now_playing": "string",
+		"state": "boolean",
+		"volume": "int",
+		"brightness": "int",
+		"power": "boolean",
+		"mode": "string",
+		"fan_speed": "int",
+		"fan_direction": "string",
+		"fan_mode": "string",
+		"fan_state": "boolean",
+		"motion": "boolean",
+		"occupancy": "boolean",
+		"door_opened": "boolean"
+	},
+	"client_device_types": {
+		"thermostat": {
+			"metrics": ["temperature", "humidity", "state"]
+		},
+		"fan": {
+			"metrics": ["fan_speed", "fan_direction", "fan_mode", "fan_state"]
+		},
+		"light": {
+			"metrics": ["brightness", "power"]
+		},
+		"speaker": {
+			"metrics": ["now_playing", "volume", "power"]
+		},
+		"motion_sensor": {
+			"metrics": ["motion"]
+		},
+		"occupancy_sensor": {
+			"metrics": ["occupancy"]
+		},
+		"door_sensor": {
+			"metrics": ["door_opened"]
+		}
 	}
 }
