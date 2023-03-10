@@ -181,7 +181,7 @@ def get_group(name) -> list[Group]:
 
 # Return a list of nodes matching the given naming pattern
 def get_node(group_name, node_name) -> list[Node]:
-    nodes = storage.get_edge_node_by_name(group_name, node_name)
+    nodes = storage.get_node_by_name(group_name, node_name)
     if len(nodes) == 0:
         raise ValueError("No such node found!")
     return [Node(node_id) for node_id in nodes]
@@ -208,7 +208,7 @@ def get_groups() -> list[Group]:
 
 # Return a list of all nodes
 def get_nodes() -> list[Node]:
-    return [Node(node_id) for node_id in storage.get_all_edge_nodes()]
+    return [Node(node_id) for node_id in storage.get_all_nodes()]
 
 
 # Return a list of all devices
@@ -269,7 +269,7 @@ def create_group(name):
 
 # Create a new node, returns the new node
 def create_node(group_name, node_name):
-    node_id = storage.insert_edge_node(group_name, node_name, "NA", 0, 0)
+    node_id = storage.insert_node(group_name, node_name, "NA", 0, 0)
     return Node(node_id)
 
 

@@ -81,7 +81,7 @@ def insert_group(group_name):
 
 # Insert an edge node into the database
 @serialized
-def insert_edge_node(group_name, edge_node_name, status, birth_timestamp, death_timestamp):
+def insert_node(group_name, edge_node_name, status, birth_timestamp, death_timestamp):
     execute_query("INSERT OR IGNORE INTO EdgeNode (group_id, edge_node_name, edge_node_status, edge_node_birth_timestamp, edge_node_death_timestamp) VALUES ((SELECT group_id FROM Groups WHERE group_name = ?), ?, ?, ?, ?) RETURNING edge_node_id",
                   (group_name, edge_node_name, status, birth_timestamp, death_timestamp))
     return execute_query("SELECT edge_node_id FROM EdgeNode WHERE edge_node_name = ? AND group_id = (SELECT group_id FROM Groups WHERE group_name = ?)", (edge_node_name, group_name))[0][0]
@@ -114,7 +114,7 @@ def get_all_groups():
 
 
 # Get all edge_node_ids from the database
-def get_all_edge_nodes():
+def get_all_nodes():
     return flatten_tuple_list(execute_query("SELECT edge_node_id FROM EdgeNode"))
 
 
@@ -137,7 +137,7 @@ def get_device_by_name(group_name, edge_node_name, device_name):
 
 
 # Get a edge_node_id by name
-def get_edge_node_by_name(group_name, edge_node_name):
+def get_node_by_name(group_name, edge_node_name):
     query = "SELECT edge_node_id from EdgeNode WHERE edge_node_name like '%" + \
         edge_node_name + "%' "
     if group_name:
