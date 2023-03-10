@@ -176,7 +176,7 @@ def get_group(name) -> list[Group]:
     groups = storage.get_group_by_name(name)
     if len(groups) == 0:
         raise ValueError("No such group found!")
-    return [Group(group_id[0]) for group_id in groups]
+    return [Group(group_id) for group_id in groups]
 
 
 # Return a list of nodes matching the given naming pattern
@@ -184,7 +184,7 @@ def get_node(group_name, node_name) -> list[Node]:
     nodes = storage.get_edge_node_by_name(group_name, node_name)
     if len(nodes) == 0:
         raise ValueError("No such node found!")
-    return [Node(node_id[0]) for node_id in nodes]
+    return [Node(node_id) for node_id in nodes]
 
 
 # Return a list of devices matching the given naming pattern
@@ -198,22 +198,22 @@ def get_device(group_name, node_name, device_name) -> list[Device]:
         full_name += device_name
 
         raise ValueError("No such device found: " + full_name)
-    return [Device(device_id[0]) for device_id in devices]
+    return [Device(device_id) for device_id in devices]
 
 
 # Return a list of all groups
 def get_groups() -> list[Group]:
-    return [Group(group_id[0]) for group_id in storage.get_all_groups()]
+    return [Group(group_id) for group_id in storage.get_all_groups()]
 
 
 # Return a list of all nodes
 def get_nodes() -> list[Node]:
-    return [Node(node_id[0]) for node_id in storage.get_all_edge_nodes()]
+    return [Node(node_id) for node_id in storage.get_all_edge_nodes()]
 
 
 # Return a list of all devices
 def get_devices() -> list[Device]:
-    return [Device(device_id[0]) for device_id in storage.get_all_devices()]
+    return [Device(device_id) for device_id in storage.get_all_devices()]
 
 
 # Return a specific group, node, or device

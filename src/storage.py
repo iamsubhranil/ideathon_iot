@@ -103,19 +103,24 @@ def insert_metric(group_name, edge_node_name, device_name, metric_name, metric_t
     return execute_query("SELECT metric_id FROM Metric WHERE metric_name = ? AND device_id = (SELECT device_id FROM Device WHERE device_name = ? AND edge_node_id = (SELECT edge_node_id FROM EdgeNode WHERE edge_node_name = ? AND group_id = (SELECT group_id FROM Groups WHERE group_name = ?)))", (metric_name, device_name, edge_node_name, group_name))[0][0]
 
 
+# In a list of tuples where each tuple has a single element, return a list of the first elements
+def flatten_tuple_list(source_list):
+    return [t[0] for t in source_list]
+
+
 # Get all group_ids from the database
 def get_all_groups():
-    return execute_query("SELECT group_id FROM Groups")
+    return flatten_tuple_list(execute_query("SELECT group_id FROM Groups"))
 
 
 # Get all edge_node_ids from the database
 def get_all_edge_nodes():
-    return execute_query("SELECT edge_node_id FROM EdgeNode")
+    return flatten_tuple_list(execute_query("SELECT edge_node_id FROM EdgeNode"))
 
 
 # Get all device_ids from the database
 def get_all_devices():
-    return execute_query("SELECT device_id FROM Device")
+    return flatten_tuple_list(execute_query("SELECT device_id FROM Device"))
 
 
 # Get a device_id by name
@@ -128,7 +133,7 @@ def get_device_by_name(group_name, edge_node_name, device_name):
             query += "AND group_id in (SELECT group_id FROM Groups WHERE group_name like '%" + \
                 group_name + "%')"
         query += ")"
-    return execute_query(query)
+    return flatten_tuple_list(execute_query(query))
 
 
 # Get a edge_node_id by name
@@ -138,17 +143,12 @@ def get_edge_node_by_name(group_name, edge_node_name):
     if group_name:
         query += "AND group_id in (SELECT group_id FROM Groups WHERE group_name like '%" + \
             group_name + "%')"
-    return execute_query(query)
+    return flatten_tuple_list(execute_query(query))
 
 
 # Get a group_id by name
 def get_group_by_name(group_name):
-    return execute_query("SELECT group_id from Groups WHERE group_name like '%" + group_name + "%'")
-
-
-# In a list of tuples where each tuple has a single element, return a list of the first elements
-def flatten_tuple_list(source_list):
-    return [t[0] for t in source_list]
+    return flatten_tuple_list(execute_query("SELECT group_id from Groups WHERE group_name like '%" + group_name + "%'"))
 
 
 # Implementation of the get function for all types defined in the model
