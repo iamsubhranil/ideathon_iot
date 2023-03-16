@@ -1,7 +1,7 @@
 import storage
 from typing import Any
 import math
-
+import statistics
 
 # An object that can be queried from the storage backend
 #
@@ -12,6 +12,8 @@ import math
 # For each of the settable attributes, the storage backend
 # will need to implement the following method:
 # def set(device_type, device_id, attribute_name, attribute_value)
+
+
 class Queryable(object):
     # name -> type of the object
     # id -> id of the object
@@ -83,6 +85,16 @@ class NamedMetric(object):
         # If no metric was found, raise an error
         raise AttributeError(
             "Device " + self.device.name + " has no metric " + attribute)
+
+    def has(self, metric):
+        try:
+            self.__getattr__(metric)
+            return True
+        except AttributeError:
+            return False
+
+    def get(self, metric):
+        return self.__getattr__(metric)
 
 
 # A device metric that provides some fields to query
@@ -301,6 +313,7 @@ def shutdown():
 # in the CLI
 RUNTIME_DICT = {
     "math": math,
+    "statistics": statistics,
     "get": get,
     "get_group": get_group,
     "get_node": get_node,
