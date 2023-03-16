@@ -1,6 +1,7 @@
 import cmd
 import time
 import model
+import re
 from rich import print, pretty
 from rich.console import Console
 from rich.table import Table
@@ -228,6 +229,19 @@ Press Ctrl+C to exit the live view.
                 except KeyboardInterrupt:
                     break
 
+    def eval_expr(self, expr):
+        # extract all @[a-zA-Z][a-zA-Z_0-9]* parts and replace
+        # them with the corresponding value from runtime_dict
+        # e.g. @a + @b will be replaced with 1 + 2
+        # if runtime_dict = {"a": 1, "b": 2}
+        values = re.findall(r'@[a-zA-Z][a-zA-Z_0-9]*', expr)
+        for value in values:
+            ident = value[1:]
+            if ident not in model.RUNTIME_DICT:
+                raise Exception("Identifier not defined: " + ident)
+            expr = expr.replace(value, str(model.RUNTIME_DICT[ident]))
+        return eval(expr, model.RUNTIME_DICT)
+
     # Evaluate an expression
     def do_expr(self, line):
         """
@@ -246,7 +260,7 @@ For example,
             self.show_error("No expression provided", "expr")
             return
         try:
-            e = eval(line, model.RUNTIME_DICT)
+            e = self.eval_expr(line)
             self.console.print(e)
         except Exception as e:
             print(str(e.__class__.__name__) + ":", e)
@@ -266,11 +280,30 @@ Expression will be evaluated following the same rules as expr.
             self.show_error("No expression provided", "assign")
             return
         try:
-            e = eval(" ".join(parts[1:]), model.RUNTIME_DICT)
-            model.RUNTIME_DICT[parts[0]] = e
+            model.RUNTIME_DICT[parts[0]] = self.eval_expr(
+                " ".join(parts[1:]))
         except Exception as e:
             print(str(e.__class__.__name__) + ":", e)
             self.show_error("Error in expression", "assign")
+
+    def do_define(self, line):
+        """
+Assign an expression to a variable.
+define <variable_name> <expression>
+Expression will not be evaluated until the variable is used.
+Use @ to access the variable.
+For example,
+    define temp get("group1/node0/device1").metric.temperature.values
+    expr max(@temp)
+        """
+        if line == "":
+            self.show_error("No expression provided", "define")
+            return
+        parts = line.split(" ")
+        if len(parts) < 2:
+            self.show_error("No expression provided", "define")
+            return
+        model.RUNTIME_DICT[parts[0]] = " ".join(parts[1:])
 
 
 def main():
